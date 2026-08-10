@@ -1544,7 +1544,7 @@ button.disabled-button:hover {
 }
 
 .entry-button-secondary {
-  background: rgba(15, 23, 42, 0.5);
+  background: #174a78;
   border: 2px solid #0b2a4a;
 }
 
