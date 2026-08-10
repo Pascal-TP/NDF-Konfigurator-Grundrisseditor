@@ -5822,6 +5822,75 @@ if (startCalculationBtn) {
   });
 });
 
+const CONFIGURATOR_ACCESS_EMAIL = 'pascal.gasch@tpholding.de';
+const CONFIGURATOR_ACCESS_PASSWORD = 'NDF2026!';
+
+function showEntryScreen() {
+  document.getElementById('entryScreen')?.classList.remove('hidden');
+  document.getElementById('configuratorApp')?.classList.add('hidden');
+}
+
+function openConfiguratorLogin() {
+  const modal = document.getElementById('configuratorLoginModal');
+  const email = document.getElementById('configuratorLoginEmail');
+  const password = document.getElementById('configuratorLoginPassword');
+  const error = document.getElementById('configuratorLoginError');
+
+  error?.classList.add('hidden');
+  if (email) email.value = '';
+  if (password) password.value = '';
+  modal?.classList.remove('hidden');
+  window.setTimeout(() => email?.focus(), 0);
+}
+
+function closeConfiguratorLogin() {
+  document.getElementById('configuratorLoginModal')?.classList.add('hidden');
+}
+
+function confirmConfiguratorLogin() {
+  const email = document.getElementById('configuratorLoginEmail')?.value.trim() || '';
+  const password = document.getElementById('configuratorLoginPassword')?.value || '';
+  const error = document.getElementById('configuratorLoginError');
+
+  if (email !== CONFIGURATOR_ACCESS_EMAIL || password !== CONFIGURATOR_ACCESS_PASSWORD) {
+    error?.classList.remove('hidden');
+    return;
+  }
+
+  closeConfiguratorLogin();
+  document.getElementById('entryScreen')?.classList.add('hidden');
+  document.getElementById('configuratorApp')?.classList.remove('hidden');
+  showStep(state.currentStep || 0);
+}
+
+function prepareDirectFloorplanEditor() {
+  /*
+   * Der direkte Editor startet bewusst mit einer frischen Etage.
+   * Die vorhandenen Konfigurator-Funktionen bleiben im Hintergrund
+   * als Speicher- und Berechnungsbasis verfügbar.
+   */
+  state.floors = [createFloor()];
+  state.floors[0].name = 'Erdgeschoss';
+  renderFloors();
+  renderTechnicalRecommendation();
+  updateSummary();
+  openFloorplanWindow();
+}
+
+function initEntryScreen() {
+  document.getElementById('openConfiguratorBtn')?.addEventListener('click', openConfiguratorLogin);
+  document.getElementById('openFloorplanDirectBtn')?.addEventListener('click', prepareDirectFloorplanEditor);
+  document.getElementById('cancelConfiguratorLoginBtn')?.addEventListener('click', closeConfiguratorLogin);
+  document.getElementById('confirmConfiguratorLoginBtn')?.addEventListener('click', confirmConfiguratorLogin);
+
+  ['configuratorLoginEmail', 'configuratorLoginPassword'].forEach((id) => {
+    document.getElementById(id)?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') confirmConfiguratorLogin();
+      if (event.key === 'Escape') closeConfiguratorLogin();
+    });
+  });
+}
+
 state.floors = [createFloor()];
 renderProjectType();
 renderSystemBlocksByProjectType();
@@ -5839,3 +5908,5 @@ syncEstrichAdditivesRules();
 syncEstrichRangeRules();
 updateSummary();
 showStep(0);
+initEntryScreen();
+showEntryScreen();

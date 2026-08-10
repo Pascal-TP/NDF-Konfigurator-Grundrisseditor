@@ -667,20 +667,107 @@ function openFloorplanWindow() {
   color: #0b2a4a;
 }
 
+  .print-document {
+    display: none;
+  }
+
   @media print {
-    header, .tabs, .sidebar {
-      display: none;
+    @page {
+      size: A4 landscape;
+      margin: 10mm;
     }
 
-    .workspace-wrap {
-      display: block;
-      padding: 0;
+    body {
+      background: white;
     }
 
-    .workspace {
-      height: 100vh;
-      border: none;
-      border-radius: 0;
+    header, .tabs, .workspace-wrap {
+      display: none !important;
+    }
+
+    .print-document {
+      display: block !important;
+    }
+
+    .print-floor-page {
+      box-sizing: border-box;
+      width: 100%;
+      page-break-after: always;
+      break-after: page;
+    }
+
+    .print-floor-page:last-child {
+      page-break-after: auto;
+      break-after: auto;
+    }
+
+    .print-floor-title {
+      margin: 0 0 8px;
+      color: #0b2a4a;
+      font-size: 20px;
+    }
+
+    .print-plan-frame {
+      height: 122mm;
+      overflow: hidden;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: white;
+      position: relative;
+    }
+
+    .print-plan-stage {
+      position: relative;
+      transform-origin: top left;
+    }
+
+    .print-plan-stage .workspace {
+      display: block !important;
+      position: relative;
+      height: auto !important;
+      min-height: 0 !important;
+      overflow: visible !important;
+      border: none !important;
+      border-radius: 0 !important;
+      background: white !important;
+    }
+
+    .print-plan-stage .room.dimmed,
+    .print-plan-stage .floorplan-door.dimmed {
+      opacity: 1 !important;
+    }
+
+    .print-plan-stage .room.selected,
+    .print-plan-stage .floorplan-door.selected {
+      outline: none !important;
+      box-shadow: none !important;
+    }
+
+    .print-plan-stage .resize-handle,
+    .print-plan-stage .door-resize-handle,
+    .print-plan-stage .calibration-point,
+    .print-plan-stage .calibration-line {
+      display: none !important;
+    }
+
+    .print-room-table {
+      width: 100%;
+      margin-top: 8px;
+      border-collapse: collapse;
+      font-size: 10px;
+    }
+
+    .print-room-table th,
+    .print-room-table td {
+      border: 1px solid #94a3b8;
+      padding: 4px 5px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .print-room-table th {
+      background: #eef6ff;
+      color: #0b2a4a;
     }
   }
 
@@ -1526,7 +1613,7 @@ function openFloorplanWindow() {
 <button id="distributorModeBtn" onclick="setMode('distributor')" class="mode-btn">Verteiler setzen</button>
 <button onclick="addFloorFromPlan()">Etage hinzufügen</button>
 <button onclick="deleteAllRooms()">Alle Räume löschen</button>
-<button onclick="window.print()">Drucken / PDF</button>
+<button onclick="printFloorplanDocument()">Drucken / PDF</button>
 </div>
 </header>
 
@@ -6340,6 +6427,176 @@ function createPolygonRoomSvg(room) {
   svg.appendChild(polygon);
 
   return svg;
+}
+
+function escapePrintHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function getPrintRoomTableHtml(floor) {
+  if (!floor.rooms.length) {
+    return (
+      '<table class="print-room-table">' +
+        '<thead><tr><th>Raum</th><th>Fläche</th><th>Maße</th><th>Verlegeabstand</th><th>Heizkreise</th><th>Rohrlänge</th><th>Funktion</th></tr></thead>' +
+        '<tbody><tr><td colspan="7">Keine Räume vorhanden</td></tr></tbody>' +
+      '</table>'
+    );
+  }
+
+  const rows = floor.rooms.map((room) => {
+    const dimensions = getRoomDimensions(room);
+    return (
+      '<tr>' +
+        '<td>' + escapePrintHtml(room.name || 'Raum') + '</td>' +
+        '<td>' + escapePrintHtml(Number(room.area || 0).toFixed(2).replace('.', ',')) + ' m²</td>' +
+        '<td>' + escapePrintHtml(dimensions.widthM + ' × ' + dimensions.heightM) + ' m</td>' +
+        '<td>' + escapePrintHtml(room.spacing || '–') + '</td>' +
+        '<td>' + escapePrintHtml(room.circuits > 0 ? room.circuits : '–') + '</td>' +
+        '<td>' + escapePrintHtml(room.pipeLength > 0 ? ('ca. ' + Math.round(room.pipeLength) + ' m') : '–') + '</td>' +
+        '<td>' + escapePrintHtml(room.function || '–') + '</td>' +
+      '</tr>'
+    );
+  }).join('');
+
+  return (
+    '<table class="print-room-table">' +
+      '<thead>' +
+        '<tr>' +
+          '<th>Raum</th>' +
+          '<th>Fläche</th>' +
+          '<th>Maße</th>' +
+          '<th>Verlegeabstand</th>' +
+          '<th>Heizkreise</th>' +
+          '<th>Rohrlänge</th>' +
+          '<th>Funktion</th>' +
+        '</tr>' +
+      '</thead>' +
+      '<tbody>' + rows + '</tbody>' +
+    '</table>'
+  );
+}
+
+function getFloorPrintBounds(floor, workspace) {
+  let maxX = Math.max(workspace.clientWidth, 900);
+  let maxY = 620;
+
+  floor.rooms.forEach((room) => {
+    const fp = room.floorplan || {};
+    maxX = Math.max(maxX, (Number(fp.x) || 0) + (Number(fp.width) || 0) + 60);
+    maxY = Math.max(maxY, (Number(fp.y) || 0) + (Number(fp.height) || 0) + 60);
+
+    if (Array.isArray(fp.doors)) {
+      fp.doors.forEach((door) => {
+        maxX = Math.max(maxX, (Number(door.x) || 0) + (Number(door.width) || 0) + 30);
+        maxY = Math.max(maxY, (Number(door.y) || 0) + (Number(door.height) || 0) + 30);
+      });
+    }
+  });
+
+  if (floor.distributor) {
+    maxX = Math.max(maxX, (Number(floor.distributor.x) || 0) + 100);
+    maxY = Math.max(maxY, (Number(floor.distributor.y) || 0) + 100);
+  }
+
+  const template = floor.template || {};
+  const templateImage = workspace.querySelector('.template-image');
+  if (templateImage) {
+    const scale = Number(template.scale) || 1;
+    maxX = Math.max(maxX, (Number(template.x) || 0) + (templateImage.naturalWidth || templateImage.width || 0) * scale + 40);
+    maxY = Math.max(maxY, (Number(template.y) || 0) + (templateImage.naturalHeight || templateImage.height || 0) * scale + 40);
+  }
+
+  return { width: maxX, height: maxY };
+}
+
+function buildFloorplanPrintDocument() {
+  document.getElementById('floorplanPrintDocument')?.remove();
+
+  const previousFloorIndex = activeFloorIndex;
+  const previousRoomIndex = selectedRoomIndex;
+  const previousDoor = selectedDoor ? { ...selectedDoor } : null;
+
+  const printDocument = document.createElement('div');
+  printDocument.id = 'floorplanPrintDocument';
+  printDocument.className = 'print-document';
+  document.body.appendChild(printDocument);
+
+  floorData.forEach((floor, floorIndex) => {
+    activeFloorIndex = floorIndex;
+    selectedRoomIndex = null;
+    selectedDoor = null;
+    renderFloor();
+
+    const workspace = document.getElementById('workspace');
+    const bounds = getFloorPrintBounds(floor, workspace);
+    const maxPrintWidth = 1030;
+    const maxPrintHeight = 440;
+    const scale = Math.min(1, maxPrintWidth / bounds.width, maxPrintHeight / bounds.height);
+
+    const clonedWorkspace = workspace.cloneNode(true);
+    clonedWorkspace.removeAttribute('id');
+    clonedWorkspace.style.width = bounds.width + 'px';
+    clonedWorkspace.style.height = bounds.height + 'px';
+    clonedWorkspace.style.minHeight = '0';
+    clonedWorkspace.style.overflow = 'visible';
+
+    clonedWorkspace.querySelectorAll('.selected, .dimmed').forEach((element) => {
+      element.classList.remove('selected', 'dimmed');
+    });
+
+    clonedWorkspace.querySelectorAll('.resize-handle, .door-resize-handle, .calibration-point, .calibration-line').forEach((element) => element.remove());
+
+    const page = document.createElement('section');
+    page.className = 'print-floor-page';
+
+    const title = document.createElement('h2');
+    title.className = 'print-floor-title';
+    title.textContent = floor.name || ('Etage ' + (floorIndex + 1));
+    page.appendChild(title);
+
+    const frame = document.createElement('div');
+    frame.className = 'print-plan-frame';
+
+    const stage = document.createElement('div');
+    stage.className = 'print-plan-stage';
+    stage.style.width = bounds.width + 'px';
+    stage.style.height = bounds.height + 'px';
+    stage.style.transform = 'scale(' + scale + ')';
+    stage.appendChild(clonedWorkspace);
+    frame.appendChild(stage);
+    page.appendChild(frame);
+
+    const tableWrap = document.createElement('div');
+    tableWrap.innerHTML = getPrintRoomTableHtml(floor);
+    page.appendChild(tableWrap.firstElementChild);
+
+    printDocument.appendChild(page);
+  });
+
+  activeFloorIndex = previousFloorIndex;
+  selectedRoomIndex = previousRoomIndex;
+  selectedDoor = previousDoor;
+  renderFloor();
+
+  return printDocument;
+}
+
+function printFloorplanDocument() {
+  if (!floorData.length) {
+    alert('Es sind keine Etagen vorhanden.');
+    return;
+  }
+
+  buildFloorplanPrintDocument();
+
+  window.setTimeout(() => {
+    window.print();
+  }, 100);
 }
 
 function renderFloor() {

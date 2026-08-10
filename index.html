@@ -11,7 +11,33 @@
 </head>
 
 <body>
-  <div class="app">
+  <section id="entryScreen" class="entry-screen">
+    <div class="entry-card">
+      <img src="logo.png" alt="NDF Logo" class="entry-logo" />
+      <div class="entry-actions">
+        <button id="openConfiguratorBtn" type="button" class="entry-button">Konfigurator</button>
+        <button id="openFloorplanDirectBtn" type="button" class="entry-button entry-button-secondary">Grundriss-Editor</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="configuratorLoginModal" class="entry-login-backdrop hidden">
+    <div class="entry-login-box">
+      <h2>Konfigurator öffnen</h2>
+      <p>Bitte Zugangsdaten eingeben.</p>
+      <label for="configuratorLoginEmail">E-Mail-Adresse</label>
+      <input id="configuratorLoginEmail" type="email" autocomplete="username" />
+      <label for="configuratorLoginPassword">Passwort</label>
+      <input id="configuratorLoginPassword" type="password" autocomplete="current-password" />
+      <div id="configuratorLoginError" class="entry-login-error hidden">E-Mail-Adresse oder Passwort ist nicht korrekt.</div>
+      <div class="entry-login-actions">
+        <button id="cancelConfiguratorLoginBtn" type="button" class="secondary">Abbrechen</button>
+        <button id="confirmConfiguratorLoginBtn" type="button">Anmelden</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app hidden" id="configuratorApp">
     <section class="hero">
       <div class="hero-grid">
         <div>
