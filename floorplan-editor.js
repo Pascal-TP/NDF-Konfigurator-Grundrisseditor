@@ -12,13 +12,18 @@
 function openFloorplanWindow() {
   const result = calculateTechnicalRecommendation();
 
-  const win = window.open('', 'ndfFloorplan', 'width=1400,height=900,resizable=yes,scrollbars=yes');
+  const win = window.open(
+    "",
+    "ndfFloorplan",
+    "width=1400,height=900,resizable=yes,scrollbars=yes",
+  );
 
   if (!win) {
     showAppModal({
-      title: 'Pop-up blockiert',
-      message: 'Bitte erlauben Sie Pop-ups für diese Seite, damit der Grundriss geöffnet werden kann.',
-      confirmText: 'OK'
+      title: "Pop-up blockiert",
+      message:
+        "Bitte erlauben Sie Pop-ups für diese Seite, damit der Grundriss geöffnet werden kann.",
+      confirmText: "OK",
     });
     return;
   }
@@ -29,17 +34,13 @@ function openFloorplanWindow() {
       distributor: floor.floorplanDistributor || null,
 
       template: {
-        src: floor.floorplanTemplate?.src || '',
-        fileName: floor.floorplanTemplate?.fileName || '',
-        x: Number.isFinite(
-          Number(floor.floorplanTemplate?.x)
-        )
+        src: floor.floorplanTemplate?.src || "",
+        fileName: floor.floorplanTemplate?.fileName || "",
+        x: Number.isFinite(Number(floor.floorplanTemplate?.x))
           ? Number(floor.floorplanTemplate.x)
           : 40,
 
-        y: Number.isFinite(
-          Number(floor.floorplanTemplate?.y)
-        )
+        y: Number.isFinite(Number(floor.floorplanTemplate?.y))
           ? Number(floor.floorplanTemplate.y)
           : 40,
         scale: Number(floor.floorplanTemplate?.scale) || 1,
@@ -48,53 +49,32 @@ function openFloorplanWindow() {
             ? Number(floor.floorplanTemplate.opacity)
             : 0.55,
         locked: Boolean(floor.floorplanTemplate?.locked),
-        pixelsPerMeter:
-          Number(
-            floor.floorplanTemplate?.pixelsPerMeter
-          ) || null,
+        pixelsPerMeter: Number(floor.floorplanTemplate?.pixelsPerMeter) || null,
 
-        detectedWalls: Array.isArray(
-          floor.floorplanTemplate?.detectedWalls
-        )
+        detectedWalls: Array.isArray(floor.floorplanTemplate?.detectedWalls)
           ? floor.floorplanTemplate.detectedWalls
           : [],
 
         detectionArea:
           floor.floorplanTemplate?.detectionArea &&
-            Number.isFinite(
-              Number(
-                floor.floorplanTemplate
-                  .detectionArea.x
-              )
-            )
+          Number.isFinite(Number(floor.floorplanTemplate.detectionArea.x))
             ? {
-              x: Number(
-                floor.floorplanTemplate
-                  .detectionArea.x
-              ),
+                x: Number(floor.floorplanTemplate.detectionArea.x),
 
-              y: Number(
-                floor.floorplanTemplate
-                  .detectionArea.y
-              ),
+                y: Number(floor.floorplanTemplate.detectionArea.y),
 
-              width: Number(
-                floor.floorplanTemplate
-                  .detectionArea.width
-              ),
+                width: Number(floor.floorplanTemplate.detectionArea.width),
 
-              height: Number(
-                floor.floorplanTemplate
-                  .detectionArea.height
-              )
-            }
-            : null
+                height: Number(floor.floorplanTemplate.detectionArea.height),
+              }
+            : null,
       },
 
       rooms: floor.rooms.map((room, roomIndex) => {
-        const technicalRoom = result.rooms.find(r =>
-          r.floor === getFloorLabel(floor, floorIndex) &&
-          r.room === getRoomLabel(room, roomIndex)
+        const technicalRoom = result.rooms.find(
+          (r) =>
+            r.floor === getFloorLabel(floor, floorIndex) &&
+            r.room === getRoomLabel(room, roomIndex),
         );
 
         return {
@@ -104,9 +84,9 @@ function openFloorplanWindow() {
           spacing: room.spacing,
           circuits: technicalRoom?.circuits || 0,
           pipeLength: technicalRoom?.pipeLength || 0,
-          floorplan: room.floorplan || {}
+          floorplan: room.floorplan || {},
         };
-      })
+      }),
     };
   });
 
@@ -10144,7 +10124,7 @@ function removeTemplate() {
 
   const floor = getActiveFloor();
 
-  ffloor.template = {
+  floor.template = {
     src: '',
     fileName: '',
     x: 40,
