@@ -248,6 +248,14 @@ function openFloorplanWindow() {
   type="text/javascript"
 ></script>
 
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script>
+  if (window.pdfjsLib) {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  }
+</script>
+
 <style>
   body {
     margin: 0;
@@ -1540,6 +1548,91 @@ function openFloorplanWindow() {
       repeat(2, minmax(120px, 1fr));
   }
 }
+
+
+/*
+ * PDF-Seitenauswahl für Grundrissvorlagen.
+ */
+.pdf-page-dialog {
+  width: min(920px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+}
+
+.pdf-page-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pdf-page-dialog-header h3 {
+  margin-bottom: 4px;
+}
+
+.pdf-page-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(150px, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.pdf-page-option {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 2px solid #d7d7d7;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #0b2a4a;
+  text-align: center;
+}
+
+.pdf-page-option:hover {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.pdf-page-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 150px;
+  padding: 6px;
+  overflow: hidden;
+  border: 1px solid #d7d7d7;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.pdf-page-preview canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  background: white;
+}
+
+.pdf-page-label {
+  font-weight: 700;
+}
+
+.pdf-page-loading {
+  color: #64748b;
+  font-size: 13px;
+}
+
+@media (max-width: 800px) {
+  .pdf-page-grid {
+    grid-template-columns: repeat(2, minmax(130px, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .pdf-page-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -1561,7 +1654,7 @@ function openFloorplanWindow() {
 <input
   id="templateFileInput"
   type="file"
-  accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+  accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
   hidden
 >
 <button id="moveModeBtn" onclick="setMode('move')" class="mode-btn active-mode">Raum verschieben</button>
@@ -6281,65 +6374,46 @@ function openTemplateFileDialog() {
   document.getElementById('templateFileInput').click();
 }
 
-function handleTemplateUpload(event) {
-  const file = event.target.files?.[0];
+function resetTemplateAfterUpload(
+  source,
+  fileName
+) {
+  const template = getActiveTemplate();
 
-  if (!file) return;
+  template.src = source;
+  template.fileName = fileName;
+  template.x = 40;
+  template.y = 40;
+  template.scale = 1;
+  template.opacity = 0.55;
+  template.locked = false;
+  template.pixelsPerMeter = null;
+  template.detectedWalls = [];
+  template.detectionArea = null;
 
-  const allowedTypes = [
-    'image/jpeg',
-    'image/png'
-  ];
+  detectionAreaSelection = {
+    active: false,
+    dragging: false,
+    startPoint: null,
+    currentPoint: null,
+    pointerId: null
+  };
 
-  if (!allowedTypes.includes(file.type)) {
-    alert(
-      'Bitte laden Sie eine JPG-, JPEG- oder PNG-Datei hoch.'
-    );
+  calibration.active = false;
+  calibration.points = [];
 
-    event.target.value = '';
-    return;
-  }
+  saveTemplateToMainWindow();
+  renderFloor();
+}
 
-  const maxFileSize = 12 * 1024 * 1024;
-
-  if (file.size > maxFileSize) {
-    alert(
-      'Die Datei ist größer als 12 MB. Bitte verwenden Sie eine kleinere oder komprimierte Bilddatei.'
-    );
-
-    event.target.value = '';
-    return;
-  }
-
+function handleImageTemplateUpload(file) {
   const reader = new FileReader();
 
   reader.onload = () => {
-    const template = getActiveTemplate();
-
-    template.src = String(reader.result || '');
-    template.fileName = file.name;
-    template.x = 40;
-    template.y = 40;
-    template.scale = 1;
-    template.opacity = 0.55;
-    template.locked = false;
-    template.pixelsPerMeter = null;
-    template.detectedWalls = [];
-    template.detectionArea = null;
-
-detectionAreaSelection = {
-  active: false,
-  dragging: false,
-  startPoint: null,
-  currentPoint: null,
-  pointerId: null
-};
-
-    calibration.active = false;
-    calibration.points = [];
-
-    saveTemplateToMainWindow();
-    renderFloor();
+    resetTemplateAfterUpload(
+      String(reader.result || ''),
+      file.name
+    );
   };
 
   reader.onerror = () => {
@@ -6349,8 +6423,516 @@ detectionAreaSelection = {
   };
 
   reader.readAsDataURL(file);
+}
+
+function getPdfJsLibrary() {
+  return (
+    window.pdfjsLib ||
+    window['pdfjs-dist/build/pdf'] ||
+    null
+  );
+}
+
+async function handlePdfTemplateUpload(file) {
+  const pdfjsLib = getPdfJsLibrary();
+
+  if (!pdfjsLib) {
+    alert(
+      'Die PDF-Unterstützung konnte nicht geladen werden. Bitte prüfen Sie die Internetverbindung und öffnen Sie den Grundriss-Editor anschließend erneut.'
+    );
+    return;
+  }
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+
+    const loadingTask = pdfjsLib.getDocument({
+      data: new Uint8Array(arrayBuffer)
+    });
+
+    const pdfDocument = await loadingTask.promise;
+
+    if (pdfDocument.numPages <= 1) {
+      await renderPdfPageAsTemplate(
+        pdfDocument,
+        1,
+        file.name
+      );
+
+      if (typeof pdfDocument.destroy === 'function') {
+        await pdfDocument.destroy();
+      }
+
+      return;
+    }
+
+    openPdfPageSelection(
+      pdfDocument,
+      file.name
+    );
+  } catch (error) {
+    console.error(
+      'Fehler beim Einlesen der PDF-Vorlage:',
+      error
+    );
+
+    alert(
+      'Die PDF-Datei konnte nicht gelesen werden. Bitte prüfen Sie, ob die Datei beschädigt oder passwortgeschützt ist.'
+    );
+  }
+}
+
+async function renderPdfPageAsTemplate(
+  pdfDocument,
+  pageNumber,
+  fileName
+) {
+  const page = await pdfDocument.getPage(
+    pageNumber
+  );
+
+  const baseViewport = page.getViewport({
+    scale: 1
+  });
+
+  /*
+   * Für die Wallerkennung wird die PDF-Seite bewusst
+   * relativ hoch aufgelöst gerendert. Gleichzeitig wird
+   * die maximale Kantenlänge begrenzt, damit sehr große
+   * Bauzeichnungen den Browser nicht unnötig belasten.
+   */
+  const preferredScale = 2.2;
+  const maximumDimension = 3200;
+
+  const scale = Math.min(
+    preferredScale,
+    maximumDimension /
+      Math.max(
+        baseViewport.width,
+        baseViewport.height
+      )
+  );
+
+  const viewport = page.getViewport({
+    scale: Math.max(scale, 0.5)
+  });
+
+  const canvas = document.createElement(
+    'canvas'
+  );
+
+  canvas.width = Math.max(
+    1,
+    Math.ceil(viewport.width)
+  );
+
+  canvas.height = Math.max(
+    1,
+    Math.ceil(viewport.height)
+  );
+
+  const context = canvas.getContext(
+    '2d',
+    {
+      alpha: false
+    }
+  );
+
+  if (!context) {
+    throw new Error(
+      'Canvas-Kontext konnte nicht erstellt werden.'
+    );
+  }
+
+  context.fillStyle = '#ffffff';
+  context.fillRect(
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+
+  await page.render({
+    canvasContext: context,
+    viewport,
+    background: 'rgb(255,255,255)'
+  }).promise;
+
+  const imageDataUrl = canvas.toDataURL(
+    'image/png'
+  );
+
+  const displayName =
+    fileName +
+    ' – Seite ' +
+    pageNumber;
+
+  resetTemplateAfterUpload(
+    imageDataUrl,
+    displayName
+  );
+}
+
+function openPdfPageSelection(
+  pdfDocument,
+  fileName
+) {
+  const existingDialog =
+    document.getElementById(
+      'pdfPageSelectionBackdrop'
+    );
+
+  if (existingDialog) {
+    existingDialog.remove();
+  }
+
+  const backdrop = document.createElement(
+    'div'
+  );
+
+  backdrop.id =
+    'pdfPageSelectionBackdrop';
+
+  backdrop.className =
+    'draw-modal-backdrop';
+
+  const dialog = document.createElement(
+    'div'
+  );
+
+  dialog.className =
+    'draw-modal pdf-page-dialog';
+
+  const header = document.createElement(
+    'div'
+  );
+
+  header.className =
+    'pdf-page-dialog-header';
+
+  const headingWrap = document.createElement(
+    'div'
+  );
+
+  const heading = document.createElement(
+    'h3'
+  );
+
+  heading.textContent =
+    'PDF-Seite auswählen';
+
+  const description = document.createElement(
+    'div'
+  );
+
+  description.className = 'hint';
+  description.textContent =
+    'Die PDF enthält ' +
+    pdfDocument.numPages +
+    ' Seiten. Wählen Sie die Seite aus, die als Grundrissvorlage verwendet werden soll.';
+
+  headingWrap.appendChild(heading);
+  headingWrap.appendChild(description);
+
+  const cancelButton = document.createElement(
+    'button'
+  );
+
+  cancelButton.type = 'button';
+  cancelButton.textContent = 'Abbrechen';
+
+  header.appendChild(headingWrap);
+  header.appendChild(cancelButton);
+
+  const grid = document.createElement('div');
+  grid.className = 'pdf-page-grid';
+
+  dialog.appendChild(header);
+  dialog.appendChild(grid);
+  backdrop.appendChild(dialog);
+  document.body.appendChild(backdrop);
+
+  let selectionInProgress = false;
+
+  const closeDialog = async () => {
+    if (selectionInProgress) {
+      return;
+    }
+
+    backdrop.remove();
+
+    if (
+      pdfDocument &&
+      typeof pdfDocument.destroy === 'function'
+    ) {
+      try {
+        await pdfDocument.destroy();
+      } catch (error) {
+        console.warn(
+          'PDF-Dokument konnte nicht vollständig freigegeben werden:',
+          error
+        );
+      }
+    }
+  };
+
+  cancelButton.addEventListener(
+    'click',
+    closeDialog
+  );
+
+  backdrop.addEventListener(
+    'click',
+    (event) => {
+      if (event.target === backdrop) {
+        closeDialog();
+      }
+    }
+  );
+
+  for (
+    let pageNumber = 1;
+    pageNumber <= pdfDocument.numPages;
+    pageNumber++
+  ) {
+    const option = document.createElement(
+      'button'
+    );
+
+    option.type = 'button';
+    option.className = 'pdf-page-option';
+
+    const preview = document.createElement(
+      'div'
+    );
+
+    preview.className = 'pdf-page-preview';
+
+    const loading = document.createElement(
+      'span'
+    );
+
+    loading.className = 'pdf-page-loading';
+    loading.textContent = 'Vorschau wird geladen …';
+
+    preview.appendChild(loading);
+
+    const label = document.createElement(
+      'span'
+    );
+
+    label.className = 'pdf-page-label';
+    label.textContent = 'Seite ' + pageNumber;
+
+    option.appendChild(preview);
+    option.appendChild(label);
+    grid.appendChild(option);
+
+    option.addEventListener(
+      'click',
+      async () => {
+        if (selectionInProgress) {
+          return;
+        }
+
+        selectionInProgress = true;
+
+        grid
+          .querySelectorAll('button')
+          .forEach((button) => {
+            button.disabled = true;
+          });
+
+        cancelButton.disabled = true;
+        label.textContent =
+          'Seite ' +
+          pageNumber +
+          ' wird übernommen …';
+
+        try {
+          await renderPdfPageAsTemplate(
+            pdfDocument,
+            pageNumber,
+            fileName
+          );
+
+          backdrop.remove();
+
+          if (
+            typeof pdfDocument.destroy ===
+            'function'
+          ) {
+            await pdfDocument.destroy();
+          }
+        } catch (error) {
+          console.error(
+            'Fehler beim Rendern der PDF-Seite:',
+            error
+          );
+
+          alert(
+            'Die ausgewählte PDF-Seite konnte nicht als Vorlage übernommen werden.'
+          );
+
+          selectionInProgress = false;
+
+          grid
+            .querySelectorAll('button')
+            .forEach((button) => {
+              button.disabled = false;
+            });
+
+          cancelButton.disabled = false;
+          label.textContent =
+            'Seite ' + pageNumber;
+        }
+      }
+    );
+
+    renderPdfPageThumbnail(
+      pdfDocument,
+      pageNumber,
+      preview
+    );
+  }
+}
+
+async function renderPdfPageThumbnail(
+  pdfDocument,
+  pageNumber,
+  previewContainer
+) {
+  try {
+    const page = await pdfDocument.getPage(
+      pageNumber
+    );
+
+    const baseViewport = page.getViewport({
+      scale: 1
+    });
+
+    const maximumPreviewWidth = 210;
+    const maximumPreviewHeight = 150;
+
+    const previewScale = Math.min(
+      maximumPreviewWidth /
+        baseViewport.width,
+      maximumPreviewHeight /
+        baseViewport.height
+    );
+
+    const viewport = page.getViewport({
+      scale: Math.max(
+        previewScale,
+        0.08
+      )
+    });
+
+    const canvas = document.createElement(
+      'canvas'
+    );
+
+    canvas.width = Math.max(
+      1,
+      Math.ceil(viewport.width)
+    );
+
+    canvas.height = Math.max(
+      1,
+      Math.ceil(viewport.height)
+    );
+
+    const context = canvas.getContext(
+      '2d',
+      {
+        alpha: false
+      }
+    );
+
+    if (!context) {
+      return;
+    }
+
+    context.fillStyle = '#ffffff';
+    context.fillRect(
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    await page.render({
+      canvasContext: context,
+      viewport,
+      background: 'rgb(255,255,255)'
+    }).promise;
+
+    previewContainer.innerHTML = '';
+    previewContainer.appendChild(canvas);
+  } catch (error) {
+    previewContainer.textContent =
+      'Vorschau nicht verfügbar';
+
+    console.warn(
+      'PDF-Vorschau konnte nicht erstellt werden:',
+      error
+    );
+  }
+}
+
+async function handleTemplateUpload(event) {
+  const file = event.target.files?.[0];
+
+  if (!file) return;
+
+  const fileName = String(
+    file.name || ''
+  ).toLowerCase();
+
+  const isPdf =
+    file.type === 'application/pdf' ||
+    fileName.endsWith('.pdf');
+
+  const isImage =
+    file.type === 'image/jpeg' ||
+    file.type === 'image/png' ||
+    fileName.endsWith('.jpg') ||
+    fileName.endsWith('.jpeg') ||
+    fileName.endsWith('.png');
+
+  if (!isPdf && !isImage) {
+    alert(
+      'Bitte laden Sie eine JPG-, JPEG-, PNG- oder PDF-Datei hoch.'
+    );
+
+    event.target.value = '';
+    return;
+  }
+
+  const maximumFileSize =
+    isPdf
+      ? 30 * 1024 * 1024
+      : 12 * 1024 * 1024;
+
+  if (file.size > maximumFileSize) {
+    alert(
+      isPdf
+        ? 'Die PDF-Datei ist größer als 30 MB. Bitte verwenden Sie eine kleinere oder komprimierte PDF-Datei.'
+        : 'Die Bilddatei ist größer als 12 MB. Bitte verwenden Sie eine kleinere oder komprimierte Bilddatei.'
+    );
+
+    event.target.value = '';
+    return;
+  }
 
   event.target.value = '';
+
+  if (isPdf) {
+    await handlePdfTemplateUpload(file);
+    return;
+  }
+
+  handleImageTemplateUpload(file);
 }
 
 function createPolygonRoomSvg(room) {
