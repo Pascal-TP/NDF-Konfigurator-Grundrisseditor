@@ -1621,3 +1621,15 @@ button.disabled-button:hover {
 .entry-login-backdrop.hidden {
   display: none !important;
 }
+
+
+/* Visueller Hinweis: Der freigegebene „Weiter“-Button pulsiert dezent. */
+@keyframes nextReadyPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(11, 42, 74, 0); }
+  50% { transform: scale(1.035); box-shadow: 0 0 0 7px rgba(11, 42, 74, 0.14); }
+}
+#nextBtn.next-ready-attention { animation: nextReadyPulse 1.15s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { #nextBtn.next-ready-attention { animation: none; } }
+
+.assignment-triple { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 760px) { .assignment-triple { grid-template-columns: 1fr; } }
