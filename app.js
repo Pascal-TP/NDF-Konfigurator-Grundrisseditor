@@ -1147,12 +1147,16 @@ function canProceedToNextStep() {
   }
 
   if (state.currentStep === 4) {
-    return state.floors.some((floor) =>
-      floor.rooms.some((room) => {
+    if (!state.floors.length) return false;
+
+    return state.floors.every((floor) => {
+      if (!floor.rooms || floor.rooms.length === 0) return false;
+
+      return floor.rooms.every((room) => {
         const area = Number(String(room.area).replace(',', '.'));
-        return area > 0;
-      })
-    );
+        return Number.isFinite(area) && area > 0;
+      });
+    });
   }
 
   if (state.currentStep === 6) {
@@ -5146,6 +5150,28 @@ function updateAssignmentPointers() {
 }
 
 function getNextRequirementText() {
+  if (state.currentStep === 4) {
+    if (!state.floors.length) {
+      return 'Bitte legen Sie mindestens eine Etage mit mindestens einem Raum an.';
+    }
+
+    const emptyFloor = state.floors.find((floor) => !floor.rooms || floor.rooms.length === 0);
+    if (emptyFloor) {
+      return 'Jede angelegte Etage benötigt mindestens einen Raum.';
+    }
+
+    const missingArea = state.floors.some((floor) =>
+      floor.rooms.some((room) => {
+        const area = Number(String(room.area).replace(',', '.'));
+        return !Number.isFinite(area) || area <= 0;
+      })
+    );
+
+    if (missingArea) {
+      return 'Bitte geben Sie für jeden angelegten Raum eine Flächengröße größer als 0 m² ein.';
+    }
+  }
+
   if (canProceedToNextStep()) return '';
 
   if (state.currentStep === 1) {
