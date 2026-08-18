@@ -1633,6 +1633,79 @@ function openFloorplanWindow() {
   }
 }
 
+
+/* Bedienungsanleitung / Hilfe */
+.help-dialog {
+  width: min(900px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+}
+
+.help-dialog h3 {
+  margin: 0;
+  color: #0b2a4a;
+  font-size: 22px;
+}
+
+.help-dialog h4 {
+  margin: 22px 0 8px;
+  color: #0b2a4a;
+  font-size: 17px;
+}
+
+.help-dialog p,
+.help-dialog li {
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.help-dialog ol,
+.help-dialog ul {
+  padding-left: 22px;
+}
+
+.help-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.help-close-button {
+  flex: 0 0 auto;
+  min-width: 42px;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.help-quickstart {
+  padding: 12px 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  background: #eef6ff;
+  color: #0b2a4a;
+}
+
+.help-note {
+  padding: 10px 12px;
+  border: 1px solid #f59e0b;
+  border-radius: 10px;
+  background: #fff7ed;
+  color: #92400e;
+}
+
+.help-key {
+  display: inline-block;
+  min-width: 24px;
+  padding: 2px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  background: #f8fafc;
+  font-weight: 700;
+  text-align: center;
+}
+
 </style>
 </head>
 <body>
@@ -1686,6 +1759,7 @@ function openFloorplanWindow() {
 <button id="distributorModeBtn" onclick="setMode('distributor')" class="mode-btn">Verteiler setzen</button>
 <button onclick="addFloorFromPlan()">Etage hinzufügen</button>
 <button onclick="deleteAllRooms()">Alle Räume löschen</button>
+<button type="button" onclick="openHelpDialog()" title="Bedienungsanleitung öffnen">? Hilfe</button>
 <button onclick="printFloorplanDocument()">Drucken / PDF</button>
 </div>
 </header>
@@ -1756,6 +1830,156 @@ let calibration = {
 };
 
 const DEFAULT_PIXELS_PER_METER = 42;
+
+function openHelpDialog() {
+  const existing =
+    document.getElementById('floorplanHelpBackdrop');
+
+  if (existing) {
+    existing.remove();
+  }
+
+  const backdrop =
+    document.createElement('div');
+
+  backdrop.id =
+    'floorplanHelpBackdrop';
+
+  backdrop.className =
+    'draw-modal-backdrop';
+
+  backdrop.innerHTML =
+    '<div class="draw-modal help-dialog" role="dialog" aria-modal="true" aria-labelledby="floorplanHelpTitle">' +
+      '<div class="help-dialog-header">' +
+        '<div>' +
+          '<h3 id="floorplanHelpTitle">Bedienungsanleitung Grundriss-Editor</h3>' +
+          '<p class="hint">Kurzanleitung zum Erstellen, Erfassen und Ausgeben von Grundrissen.</p>' +
+        '</div>' +
+        '<button type="button" id="closeFloorplanHelpTop" class="help-close-button" title="Schließen">×</button>' +
+      '</div>' +
+
+      '<div class="help-quickstart">' +
+        '<strong>Schnellstart:</strong> Vorlage hochladen → Vorlage ausrichten → Vorlage sperren → Maßstab kalibrieren → Räume zeichnen oder Wände erkennen → Räume prüfen → Drucken / PDF.' +
+      '</div>' +
+
+      '<h4>1. Grundrissvorlage hochladen</h4>' +
+      '<p>Über <strong>„Vorlage hochladen“</strong> kann ein vorhandener Grundriss als JPG, JPEG, PNG oder PDF geladen werden. Bei einer mehrseitigen PDF wählen Sie anschließend die gewünschte Seite aus.</p>' +
+      '<p>Die Vorlage erscheint im Arbeitsbereich. Solange sie nicht gesperrt ist, kann sie verschoben werden. In der rechten Seitenleiste können außerdem Größe und Deckkraft angepasst werden.</p>' +
+
+      '<h4>2. Vorlage ausrichten und sperren</h4>' +
+      '<p>Richten Sie die Vorlage zuerst passend im Arbeitsbereich aus. Mit <strong>„Vorlage sperren“</strong> wird verhindert, dass sie beim Zeichnen versehentlich verschoben wird. Zum erneuten Verschieben kann sie jederzeit wieder entsperrt werden.</p>' +
+      '<ul>' +
+        '<li><strong>Position zurücksetzen:</strong> setzt die Vorlage auf ihre Ausgangsposition zurück.</li>' +
+        '<li><strong>Vorlage entfernen:</strong> entfernt nur die hochgeladene Vorlage. Bereits gezeichnete Räume bleiben erhalten.</li>' +
+      '</ul>' +
+
+      '<h4>3. Maßstab kalibrieren</h4>' +
+      '<p>Für korrekte Längen und Flächen sollte eine hochgeladene Vorlage kalibriert werden. Sperren Sie die Vorlage und klicken Sie auf <strong>„Maßstab kalibrieren“</strong>. Klicken Sie anschließend nacheinander auf die beiden Endpunkte einer bekannten Strecke und geben Sie deren tatsächliche Länge ein.</p>' +
+      '<div class="help-note"><strong>Wichtig:</strong> Ohne korrekte Kalibrierung können die ermittelten Maße und Flächen von den tatsächlichen Werten abweichen.</div>' +
+
+      '<h4>4. Räume manuell zeichnen</h4>' +
+      '<p><strong>Rechteck zeichnen:</strong> Klicken Sie auf den Button und ziehen Sie den gewünschten Raum mit gedrückter Maustaste auf. Nach dem Zeichnen öffnet sich die Raumabfrage. Dort können Raumbezeichnung, Funktion, Raumtemperatur, Verlegeabstand, Estrich und Bodenbelag angegeben werden.</p>' +
+      '<p><strong>Wände zeichnen:</strong> Diese Funktion eignet sich für freie beziehungsweise verwinkelte Raumformen. Setzen Sie die Eckpunkte nacheinander. Die Linien werden rechtwinklig geführt. Wenn Sie wieder am Startpunkt beziehungsweise an der ersten Wand ankommen, wird der Raum geschlossen und übernommen.</p>' +
+      '<p>Mit <span class="help-key">Esc</span> kann das aktuelle Zeichnen abgebrochen werden. Mit <span class="help-key">Entf</span> beziehungsweise <span class="help-key">Backspace</span> kann beim Zeichnen der zuletzt gesetzte Punkt entfernt werden.</p>' +
+
+      '<h4>5. Fangfunktion</h4>' +
+      '<p>Mit <strong>„Fang: EIN/AUS“</strong> kann die Raster- beziehungsweise Fangfunktion umgeschaltet werden. Bei eingeschaltetem Fang lassen sich Elemente leichter sauber ausrichten. Bei Bedarf kann der Fang für eine feinere Positionierung ausgeschaltet werden.</p>' +
+
+      '<h4>6. Räume aus einer Vorlage automatisch erkennen</h4>' +
+      '<p>Für die halbautomatische Erkennung sollte die Vorlage zunächst ausgerichtet, gesperrt und möglichst kalibriert sein.</p>' +
+      '<ol>' +
+        '<li>Optional über <strong>„Bereich auswählen“</strong> nur den Gebäudebereich markieren. Dadurch können Maßlinien, Texte oder andere Zeichnungselemente außerhalb des Gebäudes von der Erkennung ausgeschlossen werden.</li>' +
+        '<li>Auf <strong>„Wände erkennen“</strong> klicken.</li>' +
+        '<li>Die erkannten Linien kontrollieren.</li>' +
+        '<li>Mit <strong>„Linien bearbeiten“</strong> eine fehlerhafte Linie auswählen und über <strong>„Ausgewählte löschen“</strong> entfernen.</li>' +
+        '<li>Mit <strong>„Linie ergänzen“</strong> fehlende Wandstücke manuell hinzufügen.</li>' +
+        '<li>Mit <strong>„Bearbeitung beenden“</strong> die Linienbearbeitung abschließen.</li>' +
+        '<li>Mit <strong>„Räume aus Linien erzeugen“</strong> aus den geschlossenen Wandkonturen normale Räume erzeugen.</li>' +
+      '</ol>' +
+      '<div class="help-note"><strong>Hinweis:</strong> Die automatische Erkennung ist eine Unterstützung. Prüfen Sie die erkannten Wandlinien und Raumflächen immer auf Plausibilität. Fehlende oder offene Wandstücke können dazu führen, dass kein geschlossener Raum erkannt wird.</div>' +
+
+      '<h4>7. Räume auswählen, verschieben und anpassen</h4>' +
+      '<p>Über <strong>„Raum verschieben“</strong> können vorhandene Räume im Grundriss verschoben werden. Ein Raum kann entweder direkt im Grundriss oder über seine Karte in der rechten Seitenleiste ausgewählt werden. Die rechte Übersicht zeigt unter anderem Fläche, Maße, Verlegeabstand, Heizkreise, Rohrlänge und Funktion.</p>' +
+      '<p>Bei rechteckigen Räumen können die eingeblendeten Eckpunkte zum Anpassen der Größe verwendet werden. Türen, die einem Raum zugeordnet sind, bewegen sich beim Verschieben des Raumes mit.</p>' +
+
+      '<h4>8. Türen setzen</h4>' +
+      '<p>Klicken Sie auf <strong>„Tür setzen“</strong> und wählen Sie die passende Öffnungsrichtung. Klicken Sie anschließend im gewünschten Raum auf die Position der Tür. Eine ausgewählte Tür kann verschoben und über ihre Eckpunkte in der Größe angepasst werden.</p>' +
+      '<p>Zum Löschen eine Tür anklicken und <span class="help-key">Entf</span> beziehungsweise <span class="help-key">Backspace</span> drücken.</p>' +
+
+      '<h4>9. Verteiler setzen</h4>' +
+      '<p>Mit <strong>„Verteiler setzen“</strong> wird der Verteiler im Grundriss positioniert. Im Modus <strong>„Raum verschieben“</strong> kann der Verteiler anschließend mit der Maus an eine andere Position verschoben werden.</p>' +
+
+      '<h4>10. Etagen</h4>' +
+      '<p>Mit <strong>„Etage hinzufügen“</strong> können weitere Geschosse angelegt werden. Über die Reiter oberhalb des Arbeitsbereichs wechseln Sie zwischen den vorhandenen Etagen. Vorlage, Räume und Verteiler werden je Etage getrennt verwaltet.</p>' +
+
+      '<h4>11. Räume löschen</h4>' +
+      '<p>Ein einzelner ausgewählter Raum kann mit <span class="help-key">Entf</span> beziehungsweise <span class="help-key">Backspace</span> gelöscht werden. Mit <strong>„Alle Räume löschen“</strong> werden nach einer Sicherheitsabfrage alle Räume der aktuell ausgewählten Etage entfernt.</p>' +
+
+      '<h4>12. Drucken / PDF</h4>' +
+      '<p>Über <strong>„Drucken / PDF“</strong> wird die Druckansicht geöffnet. Jede Etage wird auf einer eigenen Seite ausgegeben. Unter dem jeweiligen Grundriss befindet sich eine Tabelle mit den Raumwerten. Im Druckdialog des Browsers kann die Ausgabe gedruckt oder als PDF gespeichert werden.</p>' +
+
+      '<h4>13. Bedeutung der automatisch berechneten Werte</h4>' +
+      '<p>Bei beheizten Räumen werden Rohrlänge und Heizkreisanzahl automatisch aus Raumfläche und Verlegeabstand abgeleitet. Diese Werte dienen im Grundriss-Editor als überschlägige technische Orientierung und ersetzen keine abschließende Ausführungs- oder Heizlastplanung.</p>' +
+
+      '<h4>Empfohlener Arbeitsablauf</h4>' +
+      '<ol>' +
+        '<li>Etage auswählen oder anlegen.</li>' +
+        '<li>Grundrissvorlage hochladen.</li>' +
+        '<li>Vorlage ausrichten, skalieren und sperren.</li>' +
+        '<li>Maßstab kalibrieren.</li>' +
+        '<li>Räume manuell zeichnen oder halbautomatisch erkennen.</li>' +
+        '<li>Raumbezeichnungen und Flächen kontrollieren.</li>' +
+        '<li>Bei Bedarf Türen und Verteiler ergänzen.</li>' +
+        '<li>Gesamtübersicht in der rechten Seitenleiste prüfen.</li>' +
+        '<li>Über „Drucken / PDF“ die Dokumentation ausgeben.</li>' +
+      '</ol>' +
+
+      '<div class="draw-modal-actions">' +
+        '<button type="button" id="closeFloorplanHelpBottom">Schließen</button>' +
+      '</div>' +
+    '</div>';
+
+  document.body.appendChild(
+    backdrop
+  );
+
+  const closeHelp = () => {
+    backdrop.remove();
+  };
+
+  document
+    .getElementById('closeFloorplanHelpTop')
+    ?.addEventListener('click', closeHelp);
+
+  document
+    .getElementById('closeFloorplanHelpBottom')
+    ?.addEventListener('click', closeHelp);
+
+  backdrop.addEventListener(
+    'mousedown',
+    (event) => {
+      if (event.target === backdrop) {
+        closeHelp();
+      }
+    }
+  );
+
+  const handleHelpKeydown = (event) => {
+    if (event.key === 'Escape') {
+      closeHelp();
+      document.removeEventListener(
+        'keydown',
+        handleHelpKeydown
+      );
+    }
+  };
+
+  document.addEventListener(
+    'keydown',
+    handleHelpKeydown
+  );
+}
+
 
 /*
  * Einstellungen für die automatische
@@ -10196,7 +10420,7 @@ function renderTemplateControls() {
       '<div class="template-controls">' +
         '<h3>Grundrissvorlage</h3>' +
         '<div class="template-status">' +
-          'Laden Sie eine JPG-, JPEG- oder PNG-Datei hoch.' +
+          'Laden Sie eine JPG-, JPEG-, PNG- oder PDF-Datei hoch.' +
         '</div>' +
       '</div>';
 
